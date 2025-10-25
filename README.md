@@ -35,15 +35,19 @@ GET /api/price?query=coca%20cola&max_results=5
   "query": "coca cola",
   "results": [
     {
-      "store": "Tesco",
-      "name": "Coca Cola Original 1L",
+      "store": "Trolley.co.uk",
+      "name": "Coca Cola Original",
       "price": "£1.85",
+      "brand": "Coca Cola",
+      "size": "1L",
       "url": "https://www.trolley.co.uk/product/coca-cola-original/ABC123"
     },
     {
-      "store": "Sainsbury's",
-      "name": "Coca Cola Zero 1L",
+      "store": "Trolley.co.uk",
+      "name": "Coca Cola Zero Sugar",
       "price": "£1.75",
+      "brand": "Coca Cola",
+      "size": "1L",
       "url": "https://www.trolley.co.uk/product/coca-cola-zero/DEF456"
     }
   ],
@@ -286,6 +290,26 @@ curl -X POST "http://your-api-url/api/batch" \
 - Structured logging with timestamps
 - Configurable log levels
 - Request/response logging
+
+## Limitations
+
+### Store Information
+**Important**: Currently, all products return `"store": "Trolley.co.uk"` in the API response. This is because:
+
+- **Trolley.co.uk is an aggregator site** that displays products from multiple retailers (Tesco, Sainsbury's, ASDA, etc.)
+- **Store information is loaded dynamically** via JavaScript after the initial page load
+- **Static HTML scraping cannot access** the dynamically loaded store data
+- **Store filtering by specific retailers** (e.g., `?store=sainsbury`) will return 0 results
+
+**Workaround**: The API still provides valuable product information including:
+- ✅ Product names, prices, brands, and sizes
+- ✅ Direct links to products on Trolley.co.uk
+- ✅ Fast, cached responses for price comparison
+
+**Future Enhancement**: To get actual store information, the scraper would need to:
+- Use a headless browser (Selenium/Playwright) to wait for JavaScript execution
+- Make additional API calls to Trolley.co.uk's internal endpoints
+- Parse the dynamically loaded content
 
 ## Error Handling
 

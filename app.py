@@ -39,9 +39,12 @@ scraper = TrolleyScraper()
 cache = {}
 CACHE_DURATION = 3600  # 1 hour in seconds
 
-def get_cache_key(query: str, max_results: int = 5) -> str:
+def get_cache_key(query: str, max_results: int = 5, store_filter: str = None) -> str:
     """Generate a cache key for the query"""
-    return hashlib.md5(f"{query.lower()}_{max_results}".encode()).hexdigest()
+    cache_string = f"{query.lower()}_{max_results}"
+    if store_filter:
+        cache_string += f"_{store_filter.lower()}"
+    return hashlib.md5(cache_string.encode()).hexdigest()
 
 def is_cache_valid(timestamp: float) -> bool:
     """Check if cached data is still valid"""
@@ -100,17 +103,19 @@ def get_prices():
     Query Parameters:
     - query (required): Product search term
     - max_results (optional): Maximum number of results (default: 5, max: 20)
+    - store (optional): Filter results by specific store (e.g., 'tesco', 'waitrose', 'asda')
     """
     try:
         # Get query parameters
         query = request.args.get('query', '').strip()
         max_results = min(int(request.args.get('max_results', 5)), 20)
+        store_filter = request.args.get('store', '').strip() or None
         
         # Validate input
         if not query:
             return jsonify({
                 "error": "Missing required parameter 'query'",
-                "example": "/api/price?query=coca cola"
+                "example": "/api/price?query=coca cola&store=tesco"
             }), 400
         
         if len(query) < 2:
@@ -118,10 +123,11 @@ def get_prices():
                 "error": "Query must be at least 2 characters long"
             }), 400
         
-        logger.info(f"Processing request for query: '{query}' with max_results: {max_results}")
+        logger.info(f"Processing request for query: '{query}' with max_results: {max_results}" + 
+                   (f" and store filter: '{store_filter}'" if store_filter else ""))
         
         # Check cache first
-        cache_key = get_cache_key(query, max_results)
+        cache_key = get_cache_key(query, max_results, store_filter)
         cached_result = get_cached_result(cache_key)
         
         if cached_result:
@@ -129,12 +135,13 @@ def get_prices():
         
         # Scrape fresh data
         start_time = time.time()
-        products = scraper.search_products(query, max_results)
+        products = scraper.search_products(query, max_results, store_filter)
         scrape_time = time.time() - start_time
         
         # Format response
         response_data = {
             "query": query,
+            "store_filter": store_filter,
             "results": products,
             "metadata": {
                 "total_results": len(products),
@@ -176,7 +183,8 @@ def batch_prices():
     Request Body (JSON):
     {
         "queries": ["coca cola", "pepsi", "sprite"],
-        "max_results_per_query": 3
+        "max_results_per_query": 3,
+        "store_filter": "tesco"
     }
     """
     try:
@@ -185,11 +193,12 @@ def batch_prices():
         if not data or 'queries' not in data:
             return jsonify({
                 "error": "Missing 'queries' in request body",
-                "example": {"queries": ["coca cola", "pepsi"]}
+                "example": {"queries": ["coca cola", "pepsi"], "store_filter": "tesco"}
             }), 400
         
         queries = data['queries']
         max_results_per_query = min(int(data.get('max_results_per_query', 3)), 10)
+        store_filter = data.get('store_filter', '').strip() or None
         
         if not isinstance(queries, list) or len(queries) == 0:
             return jsonify({
@@ -215,18 +224,19 @@ def batch_prices():
                 start_time = time.time()
                 
                 # Check cache
-                cache_key = get_cache_key(query.strip(), max_results_per_query)
+                cache_key = get_cache_key(query.strip(), max_results_per_query, store_filter)
                 cached_result = get_cached_result(cache_key)
                 
                 if cached_result:
                     results[query] = cached_result
                 else:
-                    products = scraper.search_products(query.strip(), max_results_per_query)
+                    products = scraper.search_products(query.strip(), max_results_per_query, store_filter)
                     query_time = time.time() - start_time
                     total_time += query_time
                     
                     query_result = {
                         "query": query,
+                        "store_filter": store_filter,
                         "results": products,
                         "metadata": {
                             "total_results": len(products),
@@ -250,6 +260,7 @@ def batch_prices():
         
         return jsonify({
             "batch_results": results,
+            "store_filter": store_filter,
             "metadata": {
                 "total_queries": len(queries),
                 "successful_queries": len([r for r in results.values() if 'error' not in r]),
