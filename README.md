@@ -2,6 +2,14 @@
 
 A Python web scraper that fetches live product prices from trolley.co.uk and exposes them through a REST API with CORS support for frontend integration.
 
+## 🚀 Live Demo
+
+**Production API**: https://airy-alignment-production.up.railway.app
+
+Try it now:
+- Health Check: https://airy-alignment-production.up.railway.app/api/health
+- Search for bread: https://airy-alignment-production.up.railway.app/api/price?query=bread&max_results=3
+
 ## Features
 
 - 🔍 **Product Search**: Search for products on trolley.co.uk
