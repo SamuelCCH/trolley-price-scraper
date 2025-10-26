@@ -22,8 +22,13 @@ logger = logging.getLogger(__name__)
 # Initialize Flask app
 app = Flask(__name__)
 
-# Enable CORS for all routes
-CORS(app, origins="*")
+# Enable CORS for all routes with explicit configuration
+CORS(app, 
+     origins="*",
+     methods=["GET", "POST", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization", "User-Agent", "Accept"],
+     expose_headers=["Content-Type"],
+     supports_credentials=False)
 
 # Initialize rate limiter
 limiter = Limiter(
@@ -83,6 +88,15 @@ def home():
             "/api/health": "GET - Health check"
         }
     })
+
+@app.route('/api/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    """Handle preflight OPTIONS requests for CORS"""
+    response = jsonify({'status': 'ok'})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,User-Agent,Accept')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    return response
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
